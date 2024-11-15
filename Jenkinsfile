@@ -1,18 +1,16 @@
 pipeline {
     agent any
 
-    triggers{
-        githubPush()
-    }
-
     stages {
         stage('Cleanup') {
             steps {
                 script {
                     // Derruba containers em execução e remove imagens antigas
-                    sh 'docker-compose down'
-                    sh 'docker rmi -f docker-project || true'
-                    sh 'docker rmi -f docker-project || true'
+                    echo 'Realizando limpeza de containers e imagens antigas...'
+                    sh 'docker-compose down --remove-orphans' // Remove containers antigos
+                    sh '''
+                        docker images -q | xargs -r docker rmi -f || true
+                    ''' // Remove imagens não usadas
                 }
             }
         }
@@ -20,8 +18,9 @@ pipeline {
         stage('Start Services') {
             steps {
                 script {
-                    // Inicia os containers com docker-compose
-                    sh 'docker-compose up -d'
+                    // Inicia os containers usando o arquivo docker-compose.yml
+                    echo 'Iniciando os containers...'
+                    sh 'docker-compose up -d --build'
                 }
             }
         }
@@ -29,10 +28,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline executado com sucesso!'
+            echo 'Pipeline executado com sucesso! Todos os serviços estão no ar.'
         }
         failure {
-            echo 'Pipeline falhou.'
+            echo 'Pipeline falhou. Verifique os logs para mais detalhes.'
         }
     }
 }
