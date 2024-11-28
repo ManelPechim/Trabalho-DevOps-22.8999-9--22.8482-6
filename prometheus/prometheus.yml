@@ -9,4 +9,8 @@ scrape_configs:
   - job_name: 'mysqld_exporter'  # Nome do job para o MySQL Exporter
     static_configs:
       - targets: ['mysqld_exporter:9104']  # Definição do alvo para coletar métricas do MySQL Exporter
+    
+  - job_name: 'flask_app'  # Nome do job para a aplication Web
+    static_configs:
+      - targets: ['localhost:5000']  # Definição do alvo, sendo a rota da aplication
 

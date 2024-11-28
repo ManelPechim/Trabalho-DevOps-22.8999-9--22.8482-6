@@ -11,9 +11,9 @@ import logging
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(_name_)
+logger = logging.getLogger(__name__)
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # Configuração da chave secreta para sessões
 app.config['SECRET_KEY'] = 'chave_secreta_super_secreta'  # Substitua por uma chave segura
@@ -96,5 +96,5 @@ def adicionar_aluno():
     logger.info(f"Aluno {data['nome']} {data['sobrenome']} adicionado com sucesso!")
     return jsonify({'message': 'Aluno adicionado com sucesso!'}), 201
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
