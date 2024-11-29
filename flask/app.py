@@ -1,6 +1,7 @@
 import time
 from flask import Flask, request, jsonify
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import generate_latest, REGISTRY
 from flask_sqlalchemy import SQLAlchemy
 from flask_appbuilder import AppBuilder, SQLA
 from flask_appbuilder.models.sqla.interface import SQLAInterface
@@ -15,6 +16,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Adicionar Prometheus Metrics
+metrics = PrometheusMetrics(app)
+
+
 # Configuração da chave secreta para sessões
 app.config['SECRET_KEY'] = 'chave_secreta_super_secreta'  # Substitua por uma chave segura
 
@@ -26,9 +31,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 appbuilder = AppBuilder(app, db.session)
 
-# Adicionar Prometheus Metrics
-metrics = PrometheusMetrics(app, path='/metrics')
-# Remove a necessidade de uma rota personalizada /metrics (cuidado com duplicação).
+# Remove a necessidade de uma rota personalizada `/metrics` (cuidado com duplicação).
 
 # Modelo de Aluno - Definição da tabela 'Aluno' no banco de dados
 class Aluno(db.Model):
@@ -38,7 +41,7 @@ class Aluno(db.Model):
     turma = db.Column(db.String(50), nullable=False)
     disciplinas = db.Column(db.String(200), nullable=False)
 
-# Decorador retry do Tenacity para gerenciar tentativas de conexão ao banco de dados
+# Decorador `retry` do Tenacity para gerenciar tentativas de conexão ao banco de dados
 @retry(
     wait=wait_fixed(5),  # Aguarda 5 segundos entre tentativas
     stop=stop_after_attempt(5),  # Máximo de 5 tentativas
@@ -78,6 +81,12 @@ appbuilder.add_view(
     icon="fa-folder-open-o",
     category="Alunos",
 )
+
+@app.route('/metrics')
+def metrics_route():
+    # Retorna as métricas em formato Prometheus
+    return generate_latest(REGISTRY)
+
 
 # Rota para listar todos os alunos - Método GET
 @app.route('/alunos', methods=['GET'])

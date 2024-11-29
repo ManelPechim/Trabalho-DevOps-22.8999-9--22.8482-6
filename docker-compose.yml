@@ -20,7 +20,7 @@ services:
     build:
       context: ./flask
       dockerfile: Dockerfile_flask
-    container_name: flask_app_container
+    container_name: flask_app
     ports:
       - "5000:5000"
     depends_on:
@@ -41,6 +41,8 @@ services:
       - "9090:9090"
     depends_on:
       - flask_app
+    networks:
+      - app_network
 
   grafana:
     image: grafana/grafana:latest
@@ -54,3 +56,7 @@ services:
 volumes:
   db_data:
   grafana_data:
+  
+networks:
+  app_network:
+    driver: bridge
