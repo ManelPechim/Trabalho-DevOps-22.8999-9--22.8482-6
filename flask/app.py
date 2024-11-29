@@ -1,57 +1,37 @@
-# Código principal do Flask (app.py)
 import time
 from flask import Flask, request, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import generate_latest, REGISTRY
 from flask_sqlalchemy import SQLAlchemy
 from flask_appbuilder import AppBuilder, SQLA
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder import ModelView
 from sqlalchemy.exc import OperationalError
-from prometheus_flask_exporter import PrometheusMetrics
+from tenacity import retry, wait_fixed, stop_after_attempt, before_log
 import logging
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Adicionar Prometheus Metrics
 metrics = PrometheusMetrics(app)
+
+
 # Configuração da chave secreta para sessões
-app.config['SECRET_KEY'] = 'minha_chave_secreta_super_secreta'  # Substitua por uma chave segura
+app.config['SECRET_KEY'] = 'chave_secreta_super_secreta'  # Substitua por uma chave segura
 
 # Configuração do banco de dados
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root_password@mariadb/school_db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicializar o banco de dados e o AppBuilder
+# Inicializar o banco de dados e AppBuilder
 db = SQLAlchemy(app)
 appbuilder = AppBuilder(app, db.session)
 
-# Configuração do log
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Tentar conectar até o MariaDB estar pronto
-attempts = 5
-for i in range(attempts):
-    try:
-        with app.app_context():
-            db.create_all()  # Inicializa o banco de dados
-            # Criar um usuário administrador padrão
-            if not appbuilder.sm.find_user(username='admin'):
-                appbuilder.sm.add_user(
-                    username='admin',
-                    first_name='Admin',
-                    last_name='User',
-                    email='admin@admin.com',
-                    role=appbuilder.sm.find_role(appbuilder.sm.auth_role_admin),
-                    password='admin'
-                )
-        logger.info("Banco de dados inicializado com sucesso.")
-        break
-    except OperationalError:
-        if i < attempts - 1:
-            logger.warning("Tentativa de conexão com o banco de dados falhou. Tentando novamente em 5 segundos...")
-            time.sleep(5)  # Aguarda 5 segundos antes de tentar novamente
-        else:
-            logger.error("Não foi possível conectar ao banco de dados após várias tentativas.")
-            raise
+# Remove a necessidade de uma rota personalizada `/metrics` (cuidado com duplicação).
 
 # Modelo de Aluno - Definição da tabela 'Aluno' no banco de dados
 class Aluno(db.Model):
@@ -60,6 +40,34 @@ class Aluno(db.Model):
     sobrenome = db.Column(db.String(50), nullable=False)
     turma = db.Column(db.String(50), nullable=False)
     disciplinas = db.Column(db.String(200), nullable=False)
+
+# Decorador `retry` do Tenacity para gerenciar tentativas de conexão ao banco de dados
+@retry(
+    wait=wait_fixed(5),  # Aguarda 5 segundos entre tentativas
+    stop=stop_after_attempt(5),  # Máximo de 5 tentativas
+    before=before_log(logger, logging.WARNING)
+)
+def initialize_database():
+    with app.app_context():
+        db.create_all()  # Inicializa o banco de dados
+        # Criar um usuário administrador padrão
+        if not appbuilder.sm.find_user(username='admin'):
+            appbuilder.sm.add_user(
+                username='admin',
+                first_name='Admin',
+                last_name='User',
+                email='admin@admin.com',
+                role=appbuilder.sm.find_role(appbuilder.sm.auth_role_admin),
+                password='admin'
+            )
+        logger.info("Banco de dados inicializado com sucesso.")
+
+# Inicializar o banco de dados com retries
+try:
+    initialize_database()
+except Exception as e:
+    logger.error("Não foi possível conectar ao banco de dados após várias tentativas.")
+    raise e
 
 # Visão do modelo Aluno para o painel administrativo
 class AlunoModelView(ModelView):
@@ -73,6 +81,12 @@ appbuilder.add_view(
     icon="fa-folder-open-o",
     category="Alunos",
 )
+
+@app.route('/metrics')
+def metrics_route():
+    # Retorna as métricas em formato Prometheus
+    return generate_latest(REGISTRY)
+
 
 # Rota para listar todos os alunos - Método GET
 @app.route('/alunos', methods=['GET'])

@@ -1,0 +1,18 @@
+{
+    "dashboard": {
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Número de Acessos à Aplicação",
+          "targets": [
+            {
+              "expr": "web_app_access_total",
+              "legendFormat": "Acessos",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    }
+  }
+  
