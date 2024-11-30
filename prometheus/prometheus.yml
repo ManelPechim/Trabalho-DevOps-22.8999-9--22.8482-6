@@ -6,15 +6,11 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']  # Nome do serviço Flask no Docker Compose e porta
 
-  - job_name: 'flask_app'
+  - job_name: 'mysqld_exporter'
     static_configs:
-<<<<<<< HEAD
       - targets: ['mysqld_exporter:9104']  # Definição do alvo para coletar métricas do MySQL Exporter
     
   - job_name: 'flask_app'  # Nome do job para a aplication Web
     static_configs:
       - targets: ['flask_app_container:5000']  # Definição do alvo, sendo a rota da aplication
 
-=======
-      - targets: ['flask_app:5000']
->>>>>>> e920d8a1e6d597ae9c5865339c97d241d8ff18f5

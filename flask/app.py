@@ -3,7 +3,6 @@ import time
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from flask import Flask, request, jsonify, Response
 from prometheus_flask_exporter import PrometheusMetrics
-from prometheus_client import generate_latest, REGISTRY
 from flask_sqlalchemy import SQLAlchemy
 from flask_appbuilder import AppBuilder, SQLA
 from flask_appbuilder.models.sqla.interface import SQLAInterface
@@ -82,12 +81,6 @@ appbuilder.add_view(
     icon="fa-folder-open-o",
     category="Alunos",
 )
-
-@app.route('/metrics')
-def metrics_route():
-    # Retorna as métricas em formato Prometheus
-    return generate_latest(REGISTRY)
-
 
 # Rota para listar todos os alunos - Método GET
 @app.route('/alunos', methods=['GET'])
