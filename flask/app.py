@@ -1,5 +1,7 @@
 import time
-from flask import Flask, request, jsonify
+
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from flask import Flask, request, jsonify, Response
 from prometheus_flask_exporter import PrometheusMetrics
 from flask_sqlalchemy import SQLAlchemy
 from flask_appbuilder import AppBuilder, SQLA
@@ -15,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Adicionar Prometheus Metrics
+metrics = PrometheusMetrics(app)
+# metrics = PrometheusMetrics(app, path='/metrics')
+# Remove a necessidade de uma rota personalizada /metrics (cuidado com duplicação).
+
 # Configuração da chave secreta para sessões
 app.config['SECRET_KEY'] = 'chave_secreta_super_secreta'  # Substitua por uma chave segura
 
@@ -25,10 +32,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Inicializar o banco de dados e AppBuilder
 db = SQLAlchemy(app)
 appbuilder = AppBuilder(app, db.session)
-
-# Adicionar Prometheus Metrics
-metrics = PrometheusMetrics(app, path='/metrics')
-# Remove a necessidade de uma rota personalizada /metrics (cuidado com duplicação).
 
 # Modelo de Aluno - Definição da tabela 'Aluno' no banco de dados
 class Aluno(db.Model):
@@ -95,6 +98,29 @@ def adicionar_aluno():
     db.session.commit()
     logger.info(f"Aluno {data['nome']} {data['sobrenome']} adicionado com sucesso!")
     return jsonify({'message': 'Aluno adicionado com sucesso!'}), 201
+
+# Endpoint to expose MariaDB metrics
+@app.route('/metrics')
+def metrics_endpoint():
+    # Get MariaDB metrics using SQLAlchemy
+    # Example: Querying the number of connections
+    result = db.session.execute('SHOW STATUS LIKE "Threads_connected";').fetchone()
+    threads_connected = result[1] if result else 0
+    # Custom metric
+
+    custom_metric = f"# TYPE mariadb_threads_connected gauge\nmariadb_threads_connected {threads_connected}\n"
+    # Optionally, query other database metrics
+    #e.g., the number of queries executed
+    result = db.session.execute('SHOW STATUS LIKE "Queries";').fetchone()
+    queries = result [1] if result else 0
+    # Add more metrics as needed
+    custom_metric += f"# TYPE mariadb_queries gauge\nmariadb_queries {queries}\n"
+
+    # Return the Prometheus-formatted metrics (do MariaDB)
+    # return Response(custom_metric, mimetype="text/plain")
+
+    # Esse vi com o chat, e segundo ele: Retorna as métricas no formato que o Prometheus entende
+    return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

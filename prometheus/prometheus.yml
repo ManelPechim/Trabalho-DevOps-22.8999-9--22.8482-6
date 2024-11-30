@@ -12,5 +12,5 @@ scrape_configs:
     
   - job_name: 'flask_app'  # Nome do job para a aplication Web
     static_configs:
-      - targets: ['localhost:5000']  # Definição do alvo, sendo a rota da aplication
+      - targets: ['flask_app_container:5000']  # Definição do alvo, sendo a rota da aplication
 
