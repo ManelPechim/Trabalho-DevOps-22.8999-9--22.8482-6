@@ -1,18 +1,35 @@
 {
-    "dashboard": {
-      "panels": [
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "HTTP Request Duration",
+      "targets": [
         {
-          "type": "graph",
-          "title": "Número de Acessos à Aplicação",
-          "targets": [
-            {
-              "expr": "web_app_access_total",
-              "legendFormat": "Acessos",
-              "refId": "A"
-            }
-          ]
+          "expr": "flask_http_request_duration_seconds_count",
+          "legendFormat": "{{handler}}",
+          "intervalFactor": 2,
+          "refId": "A"
         }
-      ]
+      ],
+      "datasource": null,
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        },
+        "overrides": []
+      }
     }
-  }
-  
+  ],
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "5s",
+  "title": "Flask Metrics Dashboard"
+}

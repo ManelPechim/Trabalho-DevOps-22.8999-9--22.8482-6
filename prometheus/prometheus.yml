@@ -4,7 +4,7 @@ global:
 scrape_configs:
   - job_name: 'prometheus'
     static_configs:
-      - targets: ['localhost:9090']  # Nome do serviço Flask no Docker Compose e porta
+      - targets: ['prometheus:9090']  # Nome do serviço Flask no Docker Compose e porta
 
   - job_name: 'mysqld_exporter'
     static_configs:
