@@ -1,6 +1,5 @@
 import time
-
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Gauge
 from flask import Flask, request, jsonify, Response
 from prometheus_flask_exporter import PrometheusMetrics
 from flask_sqlalchemy import SQLAlchemy
@@ -19,8 +18,6 @@ app = Flask(__name__)
 
 # Adicionar Prometheus Metrics
 metrics = PrometheusMetrics(app)
-# metrics = PrometheusMetrics(app, path='/metrics')
-# Remove a necessidade de uma rota personalizada /metrics (cuidado com duplicação).
 
 # Configuração da chave secreta para sessões
 app.config['SECRET_KEY'] = 'chave_secreta_super_secreta'  # Substitua por uma chave segura
@@ -37,9 +34,7 @@ appbuilder = AppBuilder(app, db.session)
 class Aluno(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(50), nullable=False)
-    sobrenome = db.Column(db.String(50), nullable=False)
-    turma = db.Column(db.String(50), nullable=False)
-    disciplinas = db.Column(db.String(200), nullable=False)
+    ra = db.Column(db.String(20), nullable=False, unique=True)  # RA como campo único
 
 # Decorador `retry` do Tenacity para gerenciar tentativas de conexão ao banco de dados
 @retry(
@@ -72,7 +67,7 @@ except Exception as e:
 # Visão do modelo Aluno para o painel administrativo
 class AlunoModelView(ModelView):
     datamodel = SQLAInterface(Aluno)
-    list_columns = ['id', 'nome', 'sobrenome', 'turma', 'disciplinas']
+    list_columns = ['id', 'nome', 'ra']
 
 # Adicionar a visão do modelo ao AppBuilder
 appbuilder.add_view(
@@ -86,40 +81,56 @@ appbuilder.add_view(
 @app.route('/alunos', methods=['GET'])
 def listar_alunos():
     alunos = Aluno.query.all()
-    output = [{'id': aluno.id, 'nome': aluno.nome, 'sobrenome': aluno.sobrenome, 'turma': aluno.turma, 'disciplinas': aluno.disciplinas} for aluno in alunos]
+    output = [{'id': aluno.id, 'nome': aluno.nome, 'ra': aluno.ra} for aluno in alunos]
     return jsonify(output)
 
 # Rota para adicionar um aluno - Método POST
 @app.route('/alunos', methods=['POST'])
 def adicionar_aluno():
     data = request.get_json()
-    novo_aluno = Aluno(nome=data['nome'], sobrenome=data['sobrenome'], turma=data['turma'], disciplinas=data['disciplinas'])
+    
+    # Verificar se 'nome' e 'ra' estão presentes nos dados
+    if 'nome' not in data or 'ra' not in data:
+        return jsonify({'message': 'Campos "nome" e "ra" são obrigatórios!'}), 400
+
+    # Verificar se o RA já existe
+    if Aluno.query.filter_by(ra=data['ra']).first():
+        return jsonify({'message': 'RA já existe!'}), 400
+
+    # Criar um novo aluno
+    novo_aluno = Aluno(nome=data['nome'], ra=data['ra'])
     db.session.add(novo_aluno)
     db.session.commit()
-    logger.info(f"Aluno {data['nome']} {data['sobrenome']} adicionado com sucesso!")
+    
+    logger.info(f"Aluno {data['nome']} com RA {data['ra']} adicionado com sucesso!")
     return jsonify({'message': 'Aluno adicionado com sucesso!'}), 201
 
-# Endpoint to expose MariaDB metrics
+# Métricas personalizadas do Prometheus para MariaDB
+# Criando a métrica personalizada para monitorar conexões e queries no MariaDB
+mariadb_threads_connected = Gauge('mariadb_threads_connected', 'Número de threads conectados ao MariaDB')
+mariadb_queries = Gauge('mariadb_queries', 'Número de queries executadas no MariaDB')
+
+# Atualiza as métricas no Prometheus
+def atualizar_metricas_mariadb():
+    try:
+        # Coletando as métricas diretamente do banco de dados
+        result = db.session.execute('SHOW STATUS LIKE "Threads_connected";').fetchone()
+        threads_connected = result[1] if result else 0
+        mariadb_threads_connected.set(threads_connected)
+
+        result = db.session.execute('SHOW STATUS LIKE "Queries";').fetchone()
+        queries = result[1] if result else 0
+        mariadb_queries.set(queries)
+    except Exception as e:
+        logger.error(f"Erro ao coletar métricas do MariaDB: {e}")
+
+# Endpoint para as métricas do Prometheus
 @app.route('/metrics')
 def metrics_endpoint():
-    # Get MariaDB metrics using SQLAlchemy
-    # Example: Querying the number of connections
-    result = db.session.execute('SHOW STATUS LIKE "Threads_connected";').fetchone()
-    threads_connected = result[1] if result else 0
-    # Custom metric
-
-    custom_metric = f"# TYPE mariadb_threads_connected gauge\nmariadb_threads_connected {threads_connected}\n"
-    # Optionally, query other database metrics
-    #e.g., the number of queries executed
-    result = db.session.execute('SHOW STATUS LIKE "Queries";').fetchone()
-    queries = result [1] if result else 0
-    # Add more metrics as needed
-    custom_metric += f"# TYPE mariadb_queries gauge\nmariadb_queries {queries}\n"
-
-    # Return the Prometheus-formatted metrics (do MariaDB)
-    # return Response(custom_metric, mimetype="text/plain")
-
-    # Esse vi com o chat, e segundo ele: Retorna as métricas no formato que o Prometheus entende
+    # Atualizar as métricas antes de retorná-las
+    atualizar_metricas_mariadb()
+    
+    # Retornar as métricas no formato que o Prometheus entende
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 if __name__ == '__main__':
