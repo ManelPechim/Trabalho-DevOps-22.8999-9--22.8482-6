@@ -1,7 +1,7 @@
 import time
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Gauge
 from flask import Flask, request, jsonify, Response
-from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_flask_exporter import PrometheusMetrics, Counter
 from flask_sqlalchemy import SQLAlchemy
 from flask_appbuilder import AppBuilder, SQLA
 from flask_appbuilder.models.sqla.interface import SQLAInterface
@@ -124,7 +124,6 @@ def atualizar_metricas_mariadb():
     except Exception as e:
         logger.error(f"Erro ao coletar métricas do MariaDB: {e}")
 
-# Endpoint para as métricas do Prometheus
 @app.route('/metrics')
 def metrics_endpoint():
     # Atualizar as métricas antes de retorná-las
@@ -132,6 +131,3 @@ def metrics_endpoint():
     
     # Retornar as métricas no formato que o Prometheus entende
     return Response(generate_latest(), mimetype=CONTENT_TYPE_LATEST)
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
