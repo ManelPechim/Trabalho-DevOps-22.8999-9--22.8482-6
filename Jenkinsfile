@@ -34,10 +34,13 @@ pipeline {
         stage('Rodar Testes') {
             steps {
                 script {
+                    // Verificar se o container está em execução
+                    echo 'Verificando se o container flask_app_container está em execução...'
+                    sh 'docker ps -q --filter "name=flask_app_container" || (echo "flask_app_container não está em execução" && exit 1)'
+                    
                     // Rodar testes após o start dos serviços
                     echo 'Rodando os testes...'
-                    // Comando para rodar os testes unitários (ajuste conforme seu framework de teste)
-                    sh 'docker exec -T meu_container pytest tests/test_app.py'
+                    sh 'docker exec -T flask_app_container pytest tests/test_app.py'
                 }
             }
         }
@@ -69,6 +72,8 @@ pipeline {
         }
         failure {
             echo 'Pipeline falhou. Verifique os logs para mais detalhes.'
+            // Exibe logs do container em caso de falha
+            sh 'docker logs flask_app_container'
         }
     }
 }
