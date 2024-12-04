@@ -8,3 +8,5 @@ WTForms==2.3.3  # Versão compatível com Flask-AppBuilder que contém o módulo
 prometheus-flask-exporter==0.18.3
 prometheus-client==0.21.0
 tenacity==8.2.2
+pytest==8.3.4
+Faker==18.5.0 
