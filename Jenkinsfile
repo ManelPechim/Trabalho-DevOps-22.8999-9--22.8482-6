@@ -3,9 +3,8 @@ pipeline {
 
     environment {
         // Definindo variáveis para os containers e repositório
-        REPO_URL = 'https://github.com/ManelPechim/Trabalho-DevOps-22.8999-9--22.8482-6.git' // Altere para o URL do seu repositório
-        BRANCH = 'main'  // Ou o nome da branch que você quer usar
-        CONTAINER_NAME = 'flask_app_container' // Nome do seu container Flask, altere conforme necessário
+        REPO_URL = 'https://github.com/ManelPechim/Trabalho-DevOps-22.8999-9--22.8482-6.git'
+        BRANCH = 'main'
     }
 
     stages {
@@ -24,7 +23,7 @@ pipeline {
                 script {
                     echo 'Realizando limpeza de containers e imagens antigas...'
                     // Derruba containers em execução e remove imagens antigas
-                    sh 'docker-compose down --remove-orphans' // Remove containers antigos
+                    sh 'docker-compose down --remove-orphans'
                     sh '''
                         docker images -q | xargs -r docker rmi -f || true
                     ''' // Remove imagens não usadas
@@ -47,7 +46,7 @@ pipeline {
                 script {
                     echo 'Rodando os testes dentro do container Flask...'
                     // Executando os testes dentro do container
-                    sh "docker exec -it ${CONTAINER_NAME} pytest /app/test_app.py -s"
+                    sh "docker exec ${CONTAINER_NAME} pytest /app/test_app.py -s"
                 }
             }
         }
@@ -57,7 +56,7 @@ pipeline {
                 script {
                     echo 'Verificando o estado dos containers...'
                     // Verificando os containers em execução após o deploy
-                    sh 'docker ps' // Comando para verificar os containers em execução
+                    sh 'docker ps'
                 }
             }
         }
