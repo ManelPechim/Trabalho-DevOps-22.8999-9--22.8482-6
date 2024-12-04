@@ -46,7 +46,7 @@ pipeline {
                 script {
                     echo 'Rodando os testes dentro do container Flask...'
                     // Executando os testes dentro do container
-                    sh "docker exec ${CONTAINER_NAME} pytest /app/test_app.py -s"
+                    sh "docker exec flask_app_container pytest /app/test_app.py -s"
                 }
             }
         }
